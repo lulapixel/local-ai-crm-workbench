@@ -1,0 +1,61 @@
+# Logs & Temp
+logs/
+*.log
+*.tmp
+*.temp
+.DS_Store
+porta.txt
+
+# Environment variables & secrets (NENHUM .env deve entrar)
+.env
+*.env
+*.env.*
+!.env.example
+
+# Virtual environments
+venv/
+.venv/
+backend/venv/
+
+# Database files (SQLite)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+leads.db
+leads.db-*
+
+# AI / Agent & Tool local caches
+.agents/
+.codex/
+.pytest_cache/
+.pytest-tmp/
+.playwright-mcp/
+
+# Graphify é uma projeção derivada; o código e a documentação são a fonte de verdade.
+graphify-out/
+
+# Python bytecode & build outputs
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+build/
+dist/
+
+# Node dependencies & build
+node_modules/
+
+# Electron local caches and generated desktop artifacts
+desktop/.npm-cache/
+desktop/.electron-cache/
+desktop/.electron-builder-cache/
+desktop/saida/
+
+# Executables & large installer outputs
+*.exe
+instalador/saida/
+release-*.md
+
+# Text extractions / local dumps
+backend/docx_extracted.txt

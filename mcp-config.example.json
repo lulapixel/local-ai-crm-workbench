@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "prospectos": {
+      "command": "C:\\CAMINHO_ABSOLUTO_PARA_O_PYTHON_COM_MCP.exe",
+      "args": [
+        "-m",
+        "mcp_server"
+      ],
+      "cwd": "C:\\CAMINHO_ABSOLUTO_PARA_O_PROSPECTOS\\backend",
+      "env": {
+        "PROSPECTOS_OBSIDIAN_VAULT": "C:\\CAMINHO_ABSOLUTO_PARA_O_SOL_VAULT"
+      }
+    }
+  }
+}
