@@ -11,7 +11,7 @@ de abordagem e a mensagem prontas por IA, gere um diagnóstico em PDF e acompanh
 num CRM visual — do primeiro contato ao fechamento.
 
 ![Version](https://img.shields.io/badge/version-2.0.0-107a4a)
-![Tests](https://img.shields.io/badge/tests-460%20passing-22c55e)
+![Tests](https://img.shields.io/badge/backend_tests-511%20passing-22c55e)
 ![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1-000000?logo=flask&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
@@ -22,9 +22,8 @@ num CRM visual — do primeiro contato ao fechamento.
 ![Platform](https://img.shields.io/badge/platform-Windows-0078D6?logo=windows&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-[![GitHub stars](https://img.shields.io/github/stars/nando0x/ProspectOS?style=social)](https://github.com/nando0x/ProspectOS)
 
-<img src="https://res.cloudinary.com/doqqbpc2u/image/upload/v1783540529/ProspecOS_Print_pfnrc9.png" alt="Dashboard do ProspectOS" width="800" />
+<!-- Add a sanitized portfolio screenshot here later. -->
 
 <!-- 🎬 Placeholder: GIF de demo (buscar, filtrar, gerar mensagem, mover no Kanban) -->
 <!-- <img src="docs/demo.gif" alt="Demo do ProspectOS" width="800" /> -->
@@ -40,6 +39,33 @@ num CRM visual — do primeiro contato ao fechamento.
 > trabalho upstream das adaptações locais.
 
 ---
+
+
+## Portfolio focus
+
+This public repository is a sanitized derivative snapshot intended to
+demonstrate my local engineering contributions on top of the MIT-licensed
+ProspectOS codebase. It does not claim full authorship of the upstream project.
+
+### My contribution
+
+- MCP integration and local workflow coordination;
+- expanded security and credential-handling boundaries;
+- deterministic and regression test expansion;
+- sanitized Obsidian/SOL-VAULT projection and controlled handoffs;
+- reproducible local builds, packaging, and desktop coordination.
+
+Validation of this snapshot recorded **511 passing backend tests**, plus
+frontend lint/build, dependency audits, local HTTP smoke checks, and desktop
+packaging. See [`VALIDATION.md`](VALIDATION.md) for the exact evidence boundary
+and [`NOTICE.md`](NOTICE.md) for provenance and attribution.
+
+> The functional documentation below describes the derivative snapshot as a
+> whole. It does not imply that every listed feature is an original contribution
+> of this portfolio.
+
+---
+
 
 ## 📋 Índice
 
