@@ -182,10 +182,10 @@ def liberar_analise_instagram():
     estado_instagram["rodando"] = False
 
 
-def iniciar_thread_busca(areas=None):
+def iniciar_thread_busca(areas=None, apenas_novos=False):
     """`areas` (opcional) liga o modo mapa: lista de dicts {lat, lng, raio_m, rotulo} -
     o scraper roda uma vez por área, com as flags de geolocalização."""
-    threading.Thread(target=_rodar_busca_em_background, args=(areas,), daemon=True).start()
+    threading.Thread(target=_rodar_busca_em_background, args=(areas, apenas_novos), daemon=True).start()
 
 
 def iniciar_thread_analise_instagram(post_id, post_url, nicho_alvo, arquivo_comentarios=None):
@@ -400,7 +400,8 @@ def _executar_scraper(arquivo_bruto, ambiente, flags_extras=()):
 CHAVES_CONTAGENS_SOMADAS = (
     "total_no_csv", "novos", "novos_sem_site", "novos_site_ruim",
     "descartados_por_site_ok", "descartados_nota_baixa",
-    "descartados_sem_telefone", "erros_de_linha",
+    "descartados_sem_telefone", "evitados_conhecidos",
+    "evitados_duplicados", "erros_de_linha",
 )
 
 DICA_FONTE_PLACES = (
@@ -424,11 +425,17 @@ def montar_mensagem_conclusao(contagens):
         descartes.append(f"{contagens['descartados_nota_baixa']} com nota baixa ou sem avaliações")
     if contagens.get("descartados_sem_telefone"):
         descartes.append(f"{contagens['descartados_sem_telefone']} sem telefone pra contato")
+    if contagens.get("evitados_conhecidos"):
+        descartes.append(f"{contagens['evitados_conhecidos']} já estavam no CRM (sem nova análise web)")
+    if contagens.get("evitados_duplicados"):
+        descartes.append(f"{contagens['evitados_duplicados']} repetidos nesta captura (sem nova análise web)")
 
     ja_conhecidos = total - novos - sum((
         contagens.get("descartados_por_site_ok", 0),
         contagens.get("descartados_nota_baixa", 0),
         contagens.get("descartados_sem_telefone", 0),
+        contagens.get("evitados_conhecidos", 0),
+        contagens.get("evitados_duplicados", 0),
         contagens.get("erros_de_linha", 0),
     ))
     if ja_conhecidos > 0:
@@ -495,7 +502,7 @@ def _capturar_dados_brutos(arquivo_bruto, ambiente, area=None):
     return _executar_scraper(arquivo_bruto, ambiente, flags_geo)
 
 
-def _buscar_por_areas(areas, ambiente, data):
+def _buscar_por_areas(areas, ambiente, data, apenas_novos=False):
     """Modo mapa: roda a fonte uma vez por área (pino + raio), processando cada
     resultado com a cidade/rótulo do pino. Uma área que falha não derruba as
     outras - vira um aviso no resultado final. Retorna as contagens somadas, ou
@@ -528,6 +535,7 @@ def _buscar_por_areas(areas, ambiente, data):
             callback_progresso=_callback_progresso_verificacao,
             cidade_padrao=rotulo,
             sufixo_saida=f"_{data}_area{i}",
+            apenas_novos=apenas_novos,
         )
         for chave in CHAVES_CONTAGENS_SOMADAS:
             total[chave] += contagens.get(chave, 0)
@@ -543,7 +551,7 @@ def _buscar_por_areas(areas, ambiente, data):
     return total
 
 
-def _rodar_busca_em_background(areas=None):
+def _rodar_busca_em_background(areas=None, apenas_novos=False):
     global _job_id_busca
     estado_busca["rodando"] = True
     estado_busca["mensagem"] = "Buscando no Google Maps..."
@@ -578,7 +586,7 @@ def _rodar_busca_em_background(areas=None):
         )
 
         if areas:
-            contagens = _buscar_por_areas(areas, ambiente, data)
+            contagens = _buscar_por_areas(areas, ambiente, data, apenas_novos=apenas_novos)
             if contagens is None:
                 return  # todas as áreas falharam - mensagem já definida
         else:
@@ -593,7 +601,10 @@ def _rodar_busca_em_background(areas=None):
             estado_busca["mensagem"] = "Filtrando leads e gerando WhatsApp..."
             estado_busca["etapa"] = "verificando_sites"
             estado_busca["empresas_processadas"] = 0
-            contagens = processar.processar(arquivo_bruto, callback_progresso=_callback_progresso_verificacao)
+            contagens = processar.processar(
+                arquivo_bruto, callback_progresso=_callback_progresso_verificacao,
+                apenas_novos=apenas_novos,
+            )
 
         fonte = db.obter_config("fonte_maps") or "scraper"
         if contagens["total_no_csv"] == 0:

@@ -23,13 +23,14 @@ export function useBusca() {
   }
 
   const dispararBusca = useMutation({
-    mutationFn: (queries: string) => buscaService.disparar(queries),
+    mutationFn: ({ queries, apenasNovos }: { queries: string; apenasNovos: boolean }) =>
+      buscaService.disparar(queries, apenasNovos),
     onSuccess: aoDisparar,
   })
 
   const dispararBuscaMapa = useMutation({
-    mutationFn: ({ nichos, areas }: { nichos: string[]; areas: AreaBuscaPayload[] }) =>
-      buscaService.dispararPorMapa(nichos, areas),
+    mutationFn: ({ nichos, areas, apenasNovos }: { nichos: string[]; areas: AreaBuscaPayload[]; apenasNovos: boolean }) =>
+      buscaService.dispararPorMapa(nichos, areas, apenasNovos),
     onSuccess: aoDisparar,
   })
 
