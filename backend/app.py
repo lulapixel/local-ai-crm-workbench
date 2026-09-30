@@ -80,6 +80,7 @@ import db
 import bot
 import bot_strategy
 import bot_delivery
+import bot_operations
 import jobs
 import lp
 import outreach
@@ -136,6 +137,7 @@ app.register_blueprint(outreach.bp)
 app.register_blueprint(bot.bp)
 app.register_blueprint(bot_strategy.bp)
 app.register_blueprint(bot_delivery.bp)
+app.register_blueprint(bot_operations.bp)
 
 
 _METODOS_MUTAVEIS = frozenset({"POST", "PUT", "PATCH", "DELETE"})

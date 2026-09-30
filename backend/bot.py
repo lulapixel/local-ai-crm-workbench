@@ -15,6 +15,9 @@ bp = Blueprint("bot", __name__)
 logger = logging.getLogger(__name__)
 _scheduler_lock = threading.Lock()
 _scheduler_started = False
+_scheduler_thread = None
+_scheduler_last_tick = None
+_scheduler_error = None
 
 
 class Conflict(ValueError):
@@ -62,6 +65,8 @@ def preparar_banco(c):
             SELECT RAISE(ABORT, 'bot_target_conflict');
         END;
     """)
+    import bot_operations
+    bot_operations.preparar_banco(c)
 
 
 @contextmanager
@@ -122,7 +127,20 @@ def _contato(lead):
     return telefone_para_whatsapp(lead.get("telefone"))
 
 
+def _contatos_ocupados(c, exclude=None):
+    rows = c.execute("""SELECT place_id,telefone FROM leads l WHERE
+        status!='novo' OR EXISTS(SELECT 1 FROM bot_targets t WHERE t.place_id=l.place_id)
+        OR EXISTS(SELECT 1 FROM outreach_sequences s WHERE s.place_id=l.place_id)""")
+    return {_contato(dict(r)) for r in rows if r["place_id"] != exclude} - {None, ""}
+
+
+def _contatos_bloqueados(c):
+    return {r[0] for r in c.execute("SELECT contact FROM bot_suppressions")}
+
+
 def _disponiveis(c, config, limit):
+    if limit <= 0:
+        return []
     from rotas_leads import SQL_SCORE
     rows = c.execute(f"""
         SELECT *, ROUND({SQL_SCORE}) AS bot_score FROM leads
@@ -136,13 +154,31 @@ def _disponiveis(c, config, limit):
     """, (config["score_min"], config["cidade"], config["cidade"], config["nicho"],
              "%" + config["nicho"].replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%")).fetchall()
     result = []
+    seen = _contatos_ocupados(c) | _contatos_bloqueados(c)
     for row in rows:
         lead = dict(row)
-        if _contato(lead):
+        contact = _contato(lead)
+        if contact and contact not in seen:
+            seen.add(contact)
             result.append(lead)
             if len(result) >= limit:
                 break
     return result if limit > 0 else []
+
+
+def trabalho_disponivel(c, camp):
+    saldo = _saldo(c, camp["id"], camp["config"])
+    available = _disponiveis(c, camp["config"], saldo)
+    due = 0
+    for row in c.execute("SELECT * FROM bot_messages WHERE campaign_id=? AND state='scheduled' AND due_at<=?", (camp["id"], agora())):
+        try:
+            _validar_destino(c, dict(row))
+            due += 1
+        except Conflict:
+            continue
+    capture = bool(camp["config"]["captar"] and saldo > len(available) and (camp["last_capture"] or "")[:10] != agora()[:10])
+    useful = not camp["paused"] and camp["state"] == "idle" and saldo > 0 and bool(available or due or capture)
+    return {"useful": useful, "saldo": saldo, "available": available, "due": min(due, saldo), "capture": capture}
 
 
 def _saldo(c, campaign_id, config):
@@ -191,7 +227,12 @@ def _cancelar_inaptos(c, campaign_id):
              OR EXISTS(SELECT 1 FROM leads l WHERE l.place_id=bot_messages.place_id AND l.status='contatado'
                         AND NOT EXISTS(SELECT 1 FROM bot_messages initial WHERE initial.place_id=l.place_id AND initial.step_order=0 AND initial.state='sent'))
              OR EXISTS(SELECT 1 FROM outreach_sequences s WHERE s.place_id=bot_messages.place_id))""", (campaign_id,))
-    return cur.rowcount
+    total = cur.rowcount
+    blocked = _contatos_bloqueados(c)
+    for row in c.execute("SELECT DISTINCT l.place_id,l.telefone FROM leads l JOIN bot_messages m ON m.place_id=l.place_id WHERE m.campaign_id=? AND m.state IN ('pending','approved','scheduled')", (campaign_id,)).fetchall():
+        if _contato(dict(row)) in blocked:
+            total += c.execute("UPDATE bot_messages SET state='cancelled' WHERE place_id=? AND state IN ('pending','approved','scheduled')", (row["place_id"],)).rowcount
+    return total
 
 
 def _paused(campaign_id):
@@ -274,15 +315,19 @@ def rodar(campaign_id, run_id):
                 break
             with conectar() as c:
                 c.execute("BEGIN IMMEDIATE")
-                fresh = c.execute("SELECT * FROM leads WHERE place_id=?", (lead["place_id"],)).fetchone()
-                if not fresh or fresh["status"] != "novo" or not _saldo(c, campaign_id, config):
+                from rotas_leads import SQL_SCORE
+                fresh = c.execute(f"SELECT *,ROUND({SQL_SCORE}) AS bot_score FROM leads WHERE place_id=?", (lead["place_id"],)).fetchone()
+                if not fresh or fresh["status"] != "novo" or fresh["site_status"] not in ('sem_site','site_ruim') or fresh["bot_score"] < config["score_min"] or not _saldo(c, campaign_id, config):
+                    continue
+                contact = _contato(dict(fresh))
+                if not contact or contact in (_contatos_ocupados(c) | _contatos_bloqueados(c)):
                     continue
                 if c.execute("SELECT 1 FROM outreach_sequences WHERE place_id=?", (lead["place_id"],)).fetchone():
                     continue
                 cur = c.execute("INSERT OR IGNORE INTO bot_targets(place_id,campaign_id) VALUES(?,?)", (lead["place_id"], campaign_id))
                 if not cur.rowcount:
                     continue
-                lead = {**dict(fresh), "bot_score": lead["bot_score"]}
+                lead = dict(fresh)
                 reason = f"Score {lead['bot_score']}/100 · {'sem site próprio' if lead['site_status']=='sem_site' else 'site com melhorias'} · contato disponível"
                 for step, text in enumerate(_textos(lead, config["oferta"])):
                     c.execute("""INSERT INTO bot_messages(campaign_id,place_id,step_order,text,reason,score,state,ready_at)
@@ -335,6 +380,10 @@ def _validar_destino(c, message):
     contact = _contato(dict(lead))
     if not contact:
         raise Conflict("O lead não possui um contato utilizável.")
+    if contact in _contatos_bloqueados(c):
+        raise Conflict("Este contato pediu para não ser contatado. A liberação está bloqueada.")
+    if contact in _contatos_ocupados(c, exclude=message["place_id"]):
+        raise Conflict("Este telefone já pertence a outro contato em acompanhamento. Resolva a duplicidade antes de liberar.")
     if message["step_order"] > 0:
         prev = c.execute("SELECT sent_at FROM bot_messages WHERE place_id=? AND step_order=? AND state='sent'",
                          (message["place_id"], message["step_order"]-1)).fetchone()
@@ -437,7 +486,7 @@ def tick():
 
 
 def iniciar_scheduler():
-    global _scheduler_started
+    global _scheduler_started, _scheduler_thread
     with _scheduler_lock:
         if _scheduler_started:
             return
@@ -448,14 +497,19 @@ def iniciar_scheduler():
     import bot_delivery
     bot_delivery.recuperar()
     def loop():
+        global _scheduler_last_tick, _scheduler_error
         event = threading.Event()
         while not event.wait(30):
+            _scheduler_last_tick = agora()
             try:
                 tick()
                 bot_strategy.tick()
+                _scheduler_error = None
             except Exception:
+                _scheduler_error = "Falha no ciclo; consulte os logs locais."
                 logger.exception("Falha no relógio do bot local")
-    threading.Thread(target=loop, daemon=True).start()
+    _scheduler_thread = threading.Thread(target=loop, daemon=True)
+    _scheduler_thread.start()
 
 
 def _responder(fn, *args, status=200):

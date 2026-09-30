@@ -3,6 +3,7 @@
 
 import logging
 import sqlite3
+from bot_operations import contato_bloqueado
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -108,6 +109,8 @@ def iniciar_sequencia(pack_id: int, channel: str = "whatsapp") -> Dict[str, Any]
             raise ValueError("O pacote de conversão não possui mensagem inicial para envio.")
 
         place_id = pacote["placeId"]
+        if contato_bloqueado(conexao, place_id):
+            raise SequenceConflictError("O contato pediu para não ser contatado. Nova sequência bloqueada.")
         versao_pacote = pacote["version"]
 
         # Verifica se já existe sequência ativa para este lead
@@ -294,6 +297,8 @@ def marcar_etapa_enviada(
 
         if seq["status"] != "active":
             raise ValueError(f"Não é possível enviar etapas em uma sequência '{seq['status']}'.")
+        if contato_bloqueado(conexao, seq["place_id"]):
+            raise SequenceConflictError("Contato bloqueado; não registre um novo envio.")
 
         if etapa["status"] != "ready":
             raise ValueError(f"Apenas etapas no estado 'ready' podem ser marcadas como enviadas (status atual: '{etapa['status']}').")
@@ -497,6 +502,8 @@ def retomar_sequencia(sequence_id: int) -> Dict[str, Any]:
 
         if seq["status"] != "paused":
             raise ValueError(f"Apenas sequências pausadas podem ser retomadas (status atual: '{seq['status']}').")
+        if contato_bloqueado(conexao, seq["place_id"]):
+            raise SequenceConflictError("Contato bloqueado; sequência não retomada.")
 
         agora_dt = _utc_naive_agora()
         agora_str = agora_dt.isoformat(timespec="seconds") + "Z"

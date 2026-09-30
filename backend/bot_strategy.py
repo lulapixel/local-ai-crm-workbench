@@ -78,10 +78,13 @@ def snapshot(c):
     campaigns = []
     for row in c.execute("SELECT id FROM bot_campaigns WHERE paused=0 AND state='idle' ORDER BY id LIMIT 30"):
         camp = bot._campanha(c, row["id"])
-        available = bot._disponiveis(c, camp["config"], camp["config"]["limite_dia"])
+        work = bot.trabalho_disponivel(c, camp)
+        if not work["useful"]:
+            continue
+        available = work["available"]
         campaigns.append({"id": camp["id"], "oferta": camp["config"]["oferta"], "nicho": camp["config"]["nicho"],
                           "eligible": len(available), "score_medio": round(sum(l["bot_score"] for l in available)/len(available)) if available else None,
-                          "saldo": bot._saldo(c, camp["id"], camp["config"]), "captura_autorizada": camp["config"]["captar"]})
+                          "saldo": work["saldo"], "retornos_vencidos": work["due"], "captura_autorizada": work["capture"]})
     # Aprendizado por resultado registrado; sem alegar causalidade ou conversão medida.
     outcomes = {r[0]: r[1] for r in c.execute("SELECT status,COUNT(*) FROM leads WHERE place_id IN (SELECT place_id FROM bot_targets) GROUP BY status")}
     history = [dict(r) for r in c.execute("SELECT mode,state,feedback,plan_json FROM bot_strategy_runs WHERE state!='running' ORDER BY id DESC LIMIT 5")]

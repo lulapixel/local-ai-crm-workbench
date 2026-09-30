@@ -21,7 +21,8 @@ def isolated(tmp_path, monkeypatch):
 
 
 def lead(pid="p1", **changes):
-    data = dict(place_id=pid, nome="Empresa fictícia", telefone="11999999999", status="novo",
+    phone = "11999999999" if pid == "p1" else "119" + str(sum((i+1)*ord(ch) for i,ch in enumerate(pid))).zfill(8)
+    data = dict(place_id=pid, nome="Empresa fictícia", telefone=phone, status="novo",
                 site_status="sem_site", nota=5.0, num_avaliacoes=100, cidade="Recife", nicho="dentista")
     data.update(changes)
     with bot.conectar() as c:
