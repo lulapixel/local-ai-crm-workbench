@@ -551,7 +551,7 @@ def _buscar_por_areas(areas, ambiente, data, apenas_novos=False):
     return total
 
 
-def _rodar_busca_em_background(areas=None, apenas_novos=False):
+def _rodar_busca_em_background(areas=None, apenas_novos=False, limite_analises=None):
     global _job_id_busca
     estado_busca["rodando"] = True
     estado_busca["mensagem"] = "Buscando no Google Maps..."
@@ -604,6 +604,7 @@ def _rodar_busca_em_background(areas=None, apenas_novos=False):
             contagens = processar.processar(
                 arquivo_bruto, callback_progresso=_callback_progresso_verificacao,
                 apenas_novos=apenas_novos,
+                limite_analises=limite_analises,
             )
 
         fonte = db.obter_config("fonte_maps") or "scraper"
@@ -631,6 +632,7 @@ def _rodar_busca_em_background(areas=None, apenas_novos=False):
 
         status_final = "concluido"
         logger.info("busca concluída: %s", contagens)
+        return contagens
 
     except Exception:
         logger.exception("erro inesperado durante a busca")

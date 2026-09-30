@@ -2,6 +2,7 @@
 """
 
 import logging
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
@@ -196,6 +197,10 @@ def iniciar_sequencia(pack_id: int, channel: str = "whatsapp") -> Dict[str, Any]
         _sincronizar_campos_legados_lead(conexao, place_id, seq["id"])
         return formatar_detalhes_sequencia(conexao, seq["id"])
 
+    except sqlite3.IntegrityError as exc:
+        if "bot_target_conflict" in str(exc):
+            raise SequenceConflictError("Este lead já está inscrito no bot. A central não iniciará uma segunda sequência.") from exc
+        raise
     finally:
         conexao.close()
 

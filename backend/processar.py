@@ -868,7 +868,7 @@ def _verificar_candidata(indice, linha):
 
 
 def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callback_progresso=None,
-              cidade_padrao=None, sufixo_saida="", apenas_novos=False):
+              cidade_padrao=None, sufixo_saida="", apenas_novos=False, limite_analises=None):
     """Processa o CSV bruto do scraper. `cidade_padrao` preenche a cidade quando a
     query não tem " em <cidade>" (busca por mapa: a query é só o nicho, e a cidade
     vem do pino). `sufixo_saida` diferencia o CSV de novos quando várias áreas são
@@ -892,6 +892,9 @@ def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callbac
     descartados_sem_telefone = 0
     evitados_conhecidos = 0
     evitados_duplicados = 0
+    if limite_analises is not None and (type(limite_analises) is not int or not 1 <= limite_analises <= 30):
+        raise ValueError("limite_analises deve ser um inteiro entre 1 e 30")
+    adiados_limite = 0
 
     # Fase 1: filtra candidatas (rápido, sem rede) e prepara link do WhatsApp de cada uma
     candidatas = []
@@ -945,6 +948,9 @@ def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callbac
                 candidatas_filtradas.append((linha, link))
         candidatas = candidatas_filtradas
 
+    if limite_analises is not None:
+        adiados_limite = max(0, len(candidatas) - limite_analises)
+        candidatas = candidatas[:limite_analises]
     total_candidatas = len(candidatas)
     processadas = 0
 
@@ -1103,6 +1109,7 @@ def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callbac
         "evitados_conhecidos": evitados_conhecidos,
         "evitados_duplicados": evitados_duplicados,
         "erros_de_linha": erros_de_linha,
+        **({"adiados_limite": adiados_limite} if limite_analises is not None else {}),
     }
 
 

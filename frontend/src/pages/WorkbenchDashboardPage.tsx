@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { ArrowRight, ArrowUpRight, BarChart3, Compass, ListTodo, MapPin, Radar, Send, Sparkles } from "lucide-react"
+import { ArrowRight, ArrowUpRight, Bot, Compass, ListTodo, MapPin, Radar, Send, Sparkles } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Header } from "@/components/layout/Header"
 import { DailyOutreachWidget } from "@/components/dashboard/DailyOutreachWidget"
@@ -14,7 +14,7 @@ const atalhos = [
   { to: "/tarefas", icon: ListTodo, title: "Fila de oportunidades", detail: "Comece pelos contatos com mais potencial", number: "01" },
   { to: "/leads", icon: MapPin, title: "Captar no Maps", detail: "Planeje consultas e evite reanálises", number: "02" },
   { to: "/outreach/hoje", icon: Send, title: "Prospecção do dia", detail: "Avance conversas e retornos pendentes", number: "03" },
-  { to: "/analytics", icon: BarChart3, title: "Analisar resultados", detail: "Veja onde a captação rende mais", number: "04" },
+  { to: "/bot", icon: Bot, title: "Bot de prospecção", detail: "Prepare o fluxo e aprove cada contato", number: "04" },
 ]
 
 export function DashboardPage() {

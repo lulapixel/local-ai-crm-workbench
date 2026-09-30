@@ -77,6 +77,9 @@ if _log_fallback:
     )
 
 import db
+import bot
+import bot_strategy
+import bot_delivery
 import jobs
 import lp
 import outreach
@@ -130,6 +133,9 @@ app.register_blueprint(rotas_analytics.bp)
 app.register_blueprint(rotas_config.bp)
 app.register_blueprint(lp.bp)
 app.register_blueprint(outreach.bp)
+app.register_blueprint(bot.bp)
+app.register_blueprint(bot_strategy.bp)
+app.register_blueprint(bot_delivery.bp)
 
 
 _METODOS_MUTAVEIS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -401,6 +407,9 @@ def preparar_banco_no_startup():
     conexao = sqlite3.connect(db.CAMINHO_BANCO, timeout=10)
     try:
         processar.preparar_banco(conexao)
+        bot.preparar_banco(conexao)
+        bot_strategy.preparar_banco(conexao)
+        bot_delivery.preparar_banco(conexao)
     finally:
         conexao.close()
 
@@ -439,6 +448,8 @@ if __name__ == "__main__":
         raise SystemExit(2)
     if modo_dev:
         # dev com auto-reload do Flask, comportamento de sempre
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            bot.iniciar_scheduler()
         app.run(debug=True, port=5000)
     else:
         porta = escolher_porta(5000)
@@ -463,4 +474,5 @@ if __name__ == "__main__":
         # waitress: servidor WSGI de produção (o dev server do Flask não é pra isso)
         from waitress import serve
 
+        bot.iniciar_scheduler()
         serve(app, host="127.0.0.1", port=porta, threads=8)

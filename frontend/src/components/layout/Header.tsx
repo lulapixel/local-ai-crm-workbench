@@ -1,5 +1,5 @@
 import { Link, NavLink } from "react-router-dom"
-import { BookOpen, ChevronDown, LayoutDashboard, ListTodo, MapPin, Plus, Send, Settings, Trash2 } from "lucide-react"
+import { Bot, BookOpen, ChevronDown, LayoutDashboard, ListTodo, MapPin, Plus, Send, Settings, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
@@ -38,6 +38,7 @@ export function Header({ onNovaBusca, onVerIgnorados }: HeaderProps) {
               <span className="hidden sm:inline">Mais</span><ChevronDown size={14} className="transition-transform group-open:rotate-180" />
             </summary>
             <div className="absolute right-0 top-11 z-30 flex w-56 flex-col gap-1 rounded-xl border border-border bg-card p-2 shadow-xl">
+              <Link to="/bot" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"><Bot size={16} /> Bot de prospecção</Link>
               <Link to="/instagram" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"><InstagramIcon className="size-4" /> Instagram</Link>
               <Link to="/outreach/hoje" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"><Send size={16} /> Prospecção do dia</Link>
               <Link to="/abordagens" className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent"><Send size={16} /> Abordagens</Link>
