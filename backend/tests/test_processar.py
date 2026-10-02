@@ -588,6 +588,76 @@ class TestPipelineComSiteRuim:
         assert lead["site_url"] == "https://escondido.com.br"
         assert lead["site_status"] == "site_ruim"
 
+    def test_modo_economico_pula_conhecidos_e_repetidos_antes_da_rede(self, tmp_path, monkeypatch):
+        import sqlite3
+
+        caminho_csv = tmp_path / "bruto.csv"
+        caminho_csv.write_text(
+            self.CABECALHO
+            + "i1,p1,Conhecido,cat,end,4.5,10,(41) 98480-1109,\n"
+            + "i2,p2,Novo,cat,end,4.5,10,(41) 98480-1108,\n"
+            + "i3,p2,Novo repetido,cat,end,4.5,10,(41) 98480-1108,\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(processar, "CAMINHO_BANCO", tmp_path / "leads.db")
+        monkeypatch.setattr(processar, "PASTA_SAIDAS", tmp_path / "saidas")
+        conexao = sqlite3.connect(tmp_path / "leads.db")
+        processar.preparar_banco(conexao)
+        conexao.execute(
+            "INSERT INTO leads (place_id, nome, status) VALUES ('p1', 'Nome salvo', 'contatado')"
+        )
+        conexao.commit()
+        conexao.close()
+
+        chamadas = []
+        def buscar_site(nome, endereco=""):
+            chamadas.append(nome)
+            return None
+        monkeypatch.setattr(processar, "buscar_site_da_empresa", buscar_site)
+        monkeypatch.setattr(processar, "buscar_instagram_da_empresa", lambda *args: None)
+
+        resultado = processar.processar(
+            caminho_csv, caminho_queries=None, apenas_novos=True
+        )
+        assert chamadas == ["Novo"]
+        assert resultado["novos"] == 1
+        assert resultado["evitados_conhecidos"] == 1
+        assert resultado["evitados_duplicados"] == 1
+        conexao = sqlite3.connect(tmp_path / "leads.db")
+        assert conexao.execute(
+            "SELECT nome, status FROM leads WHERE place_id = 'p1'"
+        ).fetchone() == ("Nome salvo", "contatado")
+        conexao.close()
+
+
+class TestLimiteAnalisesBot:
+    def test_limita_rede_apos_remover_conhecidos_e_duplicados(self, tmp_path, monkeypatch):
+        import sqlite3
+        csv = tmp_path / "bruto.csv"
+        csv.write_text("input_id,place_id,title,category,address,review_rating,review_count,phone,website\n"
+                       "i1,p1,Conhecido,cat,end,5,100,11999999999,\n"
+                       "i2,p2,Novo,cat,end,5,100,11999999999,\n"
+                       "i3,p2,Duplicado,cat,end,5,100,11999999999,\n"
+                       "i4,p3,Adiado,cat,end,5,100,11999999999,\n", encoding="utf-8")
+        monkeypatch.setattr(processar, "CAMINHO_BANCO", tmp_path / "leads.db")
+        monkeypatch.setattr(processar, "PASTA_SAIDAS", tmp_path / "saidas")
+        with sqlite3.connect(tmp_path / "leads.db") as c:
+            processar.preparar_banco(c)
+            c.execute("INSERT INTO leads(place_id,nome,status) VALUES('p1','Conhecido','novo')")
+        calls = []
+        monkeypatch.setattr(processar, "buscar_site_da_empresa", lambda nome, endereco="": calls.append(nome))
+        monkeypatch.setattr(processar, "buscar_instagram_da_empresa", lambda *args: None)
+        result = processar.processar(csv, caminho_queries=None, apenas_novos=True, limite_analises=1)
+        assert calls == ["Novo"]
+        assert result["adiados_limite"] == 1
+        assert result["evitados_conhecidos"] == 1 and result["evitados_duplicados"] == 1
+
+    @pytest.mark.parametrize("limit", [0, 31, True, "1"])
+    def test_limite_invalido_nao_inicia_rede(self, tmp_path, monkeypatch, limit):
+        monkeypatch.setattr(processar, "PASTA_SAIDAS", tmp_path / "saidas")
+        with pytest.raises(ValueError, match="limite_analises"):
+            processar.processar(tmp_path / "nao-existe.csv", caminho_queries=None, limite_analises=limit)
+
 
 class TestSaidaAtomica:
     def test_csv_preserva_arquivo_anterior_se_substituicao_falhar(self, tmp_path, monkeypatch):

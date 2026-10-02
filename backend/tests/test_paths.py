@@ -24,6 +24,33 @@ import paths
 # ---------------------------------------------------------------------------
 
 class TestModoFonte:
+    @pytest.mark.parametrize("desktop_flag", ["1", "0"])
+    def test_desktop_override_requires_explicit_flag(self, tmp_path, monkeypatch, desktop_flag):
+        monkeypatch.delenv("PROSPECTOS_TEST_MODE", raising=False)
+        monkeypatch.delenv("PROSPECTOS_TEST_DATA_DIR", raising=False)
+        monkeypatch.setenv("PROSPECTOS_LOCAL_DESKTOP", desktop_flag)
+        monkeypatch.setenv("PROSPECTOS_LOCAL_DATA_DIR", str(tmp_path))
+        try:
+            importlib.reload(paths)
+            assert paths.DIR_DADOS == (tmp_path if desktop_flag == "1" else Path(paths.__file__).parent)
+        finally:
+            monkeypatch.undo()
+            importlib.reload(paths)
+
+    def test_desktop_rejects_relative_data_and_tests_take_precedence(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("PROSPECTOS_TEST_MODE", raising=False)
+        monkeypatch.setenv("PROSPECTOS_LOCAL_DESKTOP", "1")
+        monkeypatch.setenv("PROSPECTOS_LOCAL_DATA_DIR", "relative")
+        try:
+            with pytest.raises(ValueError, match="absoluto"):
+                importlib.reload(paths)
+            monkeypatch.setenv("PROSPECTOS_TEST_MODE", "1")
+            monkeypatch.setenv("PROSPECTOS_TEST_DATA_DIR", str(tmp_path))
+            assert importlib.reload(paths).DIR_DADOS == tmp_path
+        finally:
+            monkeypatch.undo()
+            importlib.reload(paths)
+
     def test_nao_empacotado(self):
         assert paths.EMPACOTADO is False
 

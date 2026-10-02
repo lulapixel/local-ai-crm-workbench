@@ -1,0 +1,36 @@
+import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
+import { Network, Settings2, ShieldCheck } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { httpClient } from "@/services/httpClient"
+import { toast } from "sonner"
+
+interface Settings { enabled: boolean; mode: string; selection: string; task_type: string; hora: string; max_calls: number }
+interface Call { role: string; state: string; requested_model: string; requested_effort: string; observed_model: string | null; observed_effort: string | null; tokens: number | null; duration_ms: number | null; decision: { reason?: string; complexity_points?: number } }
+interface Run { id: number; day: string; mode: string; state: string; error: string | null; feedback: string | null; calls: Call[]; plan: { campaign_ids: number[]; reason: string; hypothesis: string; abstain: boolean } | null }
+interface Overview { settings: Settings; standard: string; used_today: number; runs: Run[]; choices: Record<string, { label: string }>; task_types: Record<string,string>; roles: { name: string; type: string; job: string }[] }
+
+function ConfigForm({ initial, choices, taskTypes, refresh }: { initial: Settings; choices: Overview["choices"]; taskTypes: Overview["task_types"]; refresh: () => Promise<unknown> }) {
+  const [settings, setSettings] = useState(initial)
+  const [busy, setBusy] = useState(false)
+  async function save() { setBusy(true); try { await httpClient.post("/api/bot/strategy/settings", settings); await refresh(); toast.success("Gestão configurada para 15h de Brasília; até 2 chamadas por dia.") } catch (error) { toast.error(error instanceof Error ? error.message : "Não foi possível salvar.") } finally { setBusy(false) } }
+  return <fieldset className="bot-management-settings" disabled={busy}><label><input type="checkbox" checked={settings.enabled} onChange={e => setSettings(c => ({ ...c, enabled: e.target.checked }))} /> Permitir ao gestor preparar campanhas autorizadas às 15h</label>
+    <div className="bot-fields"><div><label className="bot-label" htmlFor="strategy-mode">Organização</label><select id="strategy-mode" value={settings.mode} onChange={e => setSettings(c => ({ ...c, mode: e.target.value }))}><option value="solo">Gestor solo · até 1 chamada</option><option value="duo">Gestor + revisor · até 2 chamadas</option></select></div><div><label className="bot-label" htmlFor="strategy-selection">Modelo e esforço</label><select id="strategy-selection" value={settings.selection} onChange={e => setSettings(c => ({ ...c, selection: e.target.value }))}><option value="auto">Bot escolhe pela política</option>{Object.entries(choices).map(([key, choice]) => <option value={key} key={key}>{choice.label}</option>)}</select></div></div>
+    <label className="bot-label" htmlFor="strategy-task">Tipo de chamada</label><select id="strategy-task" value={settings.task_type} onChange={e => setSettings(c => ({ ...c, task_type: e.target.value }))}>{Object.entries(taskTypes).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select>
+    <p className="bot-muted">Janela: 15h00–15h09, Brasília (UTC−3). Usa sua sessão ChatGPT do Codex e consome a cota da conta. Sem API paga ou repetição automática. O backend precisa estar aberto.</p><Button size="sm" onClick={save} disabled={busy}><Settings2 size={15} /> Salvar gestão</Button>
+  </fieldset>
+}
+
+export function StrategyBoard() {
+  const overview = useQuery({ queryKey: ["bot-strategy"], queryFn: () => httpClient.get<Overview>("/api/bot/strategy"), refetchInterval: 10000 })
+  const refresh = () => overview.refetch()
+  async function feedback(id: number, value: string) { try { await httpClient.post(`/api/bot/strategy/${id}/feedback`, { feedback: value }); refresh(); toast.success("Avaliação registrada para orientar decisões futuras.") } catch (error) { toast.error(error instanceof Error ? error.message : "Falha ao avaliar.") } }
+  if (overview.isPending) return <section className="bot-panel">Carregando gestão estratégica…</section>
+  if (overview.isError || !overview.data) return <section className="bot-panel" role="alert">Gestão indisponível. <Button variant="outline" onClick={refresh}>Tentar novamente</Button></section>
+  const data = overview.data
+  return <section id="bot-strategy" className="bot-panel bot-management"><div className="bot-section-title"><Network size={22} /><div><h2>Gestão da operação</h2><p>{data.standard} · {data.used_today}/2 tentativas contabilizadas hoje · aprendizado por resultados e avaliação</p></div></div>
+    <div className="bot-management-grid"><ConfigForm key={JSON.stringify(data.settings)} initial={data.settings} choices={data.choices} taskTypes={data.task_types} refresh={refresh} /><div className="bot-org">{data.roles.map(role => <div key={role.name}><strong>{role.name}<span>{role.type}</span></strong><p>{role.job}</p></div>)}</div></div>
+    <details className="bot-standards"><summary>Critérios de decisão e aprovações indispensáveis</summary><ul><li>Rotina delimitada: Luna high. Mais alternativas ou setores: Luna xhigh. Complexidade alta: Luna max.</li><li>Estratégias contestadas: Sol 6.1 medium; diagnóstico após três avaliações rejeitadas: Sol 6.1 high.</li><li>Você pode fixar qualquer uma das cinco combinações. Falha de infraestrutura não escala modelo; pin não confirmado bloqueia a aplicação.</li><li>O gestor só prepara campanhas existentes e respeita pausas e limites. Mensagens externas, orçamento e mudanças de permissões dependem do operador.</li><li>Modo dupla usa um revisor em outra sessão, com acesso ao mesmo resumo e ao plano. Isso prepara uma avaliação do SOL; não comprova superioridade de multiagentes.</li></ul></details>
+    <div className="bot-strategy-history">{!data.runs.length ? <p className="bot-muted">Nenhuma chamada estratégica realizada. As decisões, modelos relatados, duração e uso disponível aparecerão aqui.</p> : data.runs.slice(0,5).map(run => <article key={run.id}><strong>{run.day} · {run.mode === "duo" ? "Gestor + revisor" : "Gestor solo"} · {run.state}</strong>{run.plan && <><p>{run.plan.reason}</p><p className="bot-muted">Hipótese: {run.plan.hypothesis}</p><p className="bot-muted">{run.plan.abstain ? "Abstenção: nenhuma campanha delegada." : `Campanhas delegadas: ${run.plan.campaign_ids.join(", ") || "nenhuma"}`}</p></>}{run.calls.map((call,i) => <div className="bot-call" key={i}><ShieldCheck size={14} /><span>{call.role}: {call.requested_model} / {call.requested_effort}<small>{call.decision.reason} · complexidade {call.decision.complexity_points ?? "?"}. Relatado: {call.observed_model ?? "não confirmado"} / {call.observed_effort ?? "não confirmado"}. Tokens: {call.tokens ?? "não expostos"}; duração: {call.duration_ms === null ? "não exposta" : `${(call.duration_ms/1000).toFixed(1)}s`}.</small></span></div>)}{run.error && <p role="alert" className="bot-error-text">{run.error}</p>}{run.state === "completed" && <div className="bot-actions">{[["accepted","Atendeu"],["partial","Parcial"],["rejected","Não atendeu"]].map(([value,label]) => <Button key={value} size="sm" variant={run.feedback === value ? "default" : "outline"} onClick={() => feedback(run.id,value)}>{label}</Button>)}</div>}</article>)}</div>
+  </section>
+}

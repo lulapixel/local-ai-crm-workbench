@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Map, Type } from "lucide-react"
+import { CircleDollarSign, Map, Type } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ export function NovaBuscaModal({
   const [queries, setQueries] = useState("")
   const [nichos, setNichos] = useState<string[]>([])
   const [areas, setAreas] = useState<AreaBusca[]>([])
+  const [apenasNovos, setApenasNovos] = useState(true)
   const {
     dispararBusca,
     dispararBuscaMapa,
@@ -48,17 +49,26 @@ export function NovaBuscaModal({
   const rodando = pollingAtivo && statusBusca.data?.rodando
   const disparando = dispararBusca.isPending || dispararBuscaMapa.isPending
 
+  const linhas = queries.split("\n").map((linha) => linha.trim()).filter(Boolean)
+  const consultasUnicas = new Set(linhas.map((linha) => linha.toLocaleLowerCase("pt-BR"))).size
+  const areasUnicas = new Set(areas.map((area) => `${area.lat}:${area.lng}:${area.raio_m}`)).size
+  const nichosUnicos = new Set(nichos.map((nicho) => nicho.toLocaleLowerCase("pt-BR"))).size
+  const capturasPlanejadas = modo === "texto" ? consultasUnicas : areasUnicas * nichosUnicos
+  const repetidas = modo === "texto" ? linhas.length - consultasUnicas :
+    areas.length * nichos.length - capturasPlanejadas
+
   const podeBuscar =
     modo === "texto" ? Boolean(queries.trim()) : nichos.length > 0 && areas.length > 0
 
   const handleConfirmar = () => {
     if (!podeBuscar) return
     if (modo === "texto") {
-      dispararBusca.mutate(queries)
+      dispararBusca.mutate({ queries, apenasNovos })
     } else {
       dispararBuscaMapa.mutate({
         nichos,
         areas: areas.map(({ lat, lng, raio_m, rotulo }) => ({ lat, lng, raio_m, rotulo })),
+        apenasNovos,
       })
     }
   }
@@ -138,6 +148,36 @@ export function NovaBuscaModal({
               onChange={setNichos}
               desabilitado={Boolean(rodando)}
             />
+          </div>
+        )}
+
+        {!rodando && !resultadoFinal && (
+          <div className="space-y-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4">
+            <div className="flex items-start gap-3">
+              <CircleDollarSign className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div>
+                <p className="text-sm font-semibold">Planejamento da captura</p>
+                <p className="text-xs text-muted-foreground">
+                  {capturasPlanejadas} {capturasPlanejadas === 1 ? "combinação de busca planejada" : "combinações de busca planejadas"}
+                  {repetidas > 0 && ` · ${repetidas} ${repetidas === 1 ? "repetição removida" : "repetições removidas"}`}.
+                  O número de chamadas e o custo da fonte ativa podem variar.
+                </p>
+              </div>
+            </div>
+            <label className="flex cursor-pointer items-start gap-3 text-sm">
+              <input
+                type="checkbox"
+                checked={apenasNovos}
+                onChange={(e) => setApenasNovos(e.target.checked)}
+                className="mt-0.5 size-4 accent-primary"
+              />
+              <span>
+                <strong>Evitar reanálise de leads conhecidos</strong>
+                <span className="mt-0.5 block text-xs text-muted-foreground">
+                  Ignora empresas já no CRM e duplicatas antes da análise de site e Instagram. Desative para atualizar esses dados.
+                </span>
+              </span>
+            </label>
           </div>
         )}
 

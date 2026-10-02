@@ -6,6 +6,10 @@ import { Toaster } from "@/components/ui/sonner"
 import { queryClient } from "@/lib/queryClient"
 import { PaletaComando } from "@/components/shared/PaletaComando"
 
+const BotPage = lazy(() => import("@/pages/BotPage").then(module => ({ default: module.BotPage })))
+const OperacaoPage = lazy(() => import("@/pages/OperacaoPage").then(module => ({ default: module.OperacaoPage })))
+const ResearchPage = lazy(() => import("@/pages/ResearchPage").then(module => ({ default: module.ResearchPage })))
+
 const DashboardPage = lazy(() =>
   import("@/pages/DashboardPage").then((module) => ({
     default: module.DashboardPage,
@@ -111,6 +115,9 @@ export default function App() {
           >
             <Routes>
               <Route path="/" element={<DashboardPage />} />
+              <Route path="/bot" element={<BotPage />} />
+            <Route path="/operacao" element={<OperacaoPage />} />
+            <Route path="/pesquisa" element={<ResearchPage />} />
             <Route
               path="/abordagens"
               element={

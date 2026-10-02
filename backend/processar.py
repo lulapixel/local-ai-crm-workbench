@@ -868,7 +868,7 @@ def _verificar_candidata(indice, linha):
 
 
 def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callback_progresso=None,
-              cidade_padrao=None, sufixo_saida=""):
+              cidade_padrao=None, sufixo_saida="", apenas_novos=False, limite_analises=None):
     """Processa o CSV bruto do scraper. `cidade_padrao` preenche a cidade quando a
     query não tem " em <cidade>" (busca por mapa: a query é só o nicho, e a cidade
     vem do pino). `sufixo_saida` diferencia o CSV de novos quando várias áreas são
@@ -890,6 +890,11 @@ def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callbac
     # acha que a busca está bugada quando na verdade é o filtro fazendo o papel dele
     descartados_nota_baixa = 0
     descartados_sem_telefone = 0
+    evitados_conhecidos = 0
+    evitados_duplicados = 0
+    if limite_analises is not None and (type(limite_analises) is not int or not 1 <= limite_analises <= 30):
+        raise ValueError("limite_analises deve ser um inteiro entre 1 e 30")
+    adiados_limite = 0
 
     # Fase 1: filtra candidatas (rápido, sem rede) e prepara link do WhatsApp de cada uma
     candidatas = []
@@ -905,6 +910,47 @@ def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callbac
                 continue
             candidatas.append((linha, link_whatsapp))
 
+    # No modo econômico, consultar o banco ANTES de qualquer busca web ou
+    # análise de site. O modo completo mantém a atualização dos leads antigos.
+    if apenas_novos and candidatas:
+        ids_candidatos = {
+            linha.get("place_id") or linha.get("input_id")
+            for linha, _ in candidatas
+        }
+        ids_candidatos.discard(None)
+        conexao_previa = sqlite3.connect(CAMINHO_BANCO, timeout=10)
+        try:
+            preparar_banco(conexao_previa)
+            ids_existentes = set()
+            lista_ids = list(ids_candidatos)
+            for inicio in range(0, len(lista_ids), 500):
+                lote = lista_ids[inicio:inicio + 500]
+                marcadores = ",".join("?" for _ in lote)
+                ids_existentes.update(
+                    linha[0] for linha in conexao_previa.execute(
+                        f"SELECT place_id FROM leads WHERE place_id IN ({marcadores})", lote
+                    )
+                )
+        finally:
+            conexao_previa.close()
+
+        ids_vistos = set()
+        candidatas_filtradas = []
+        for linha, link in candidatas:
+            place_id = linha.get("place_id") or linha.get("input_id")
+            if place_id in ids_existentes:
+                evitados_conhecidos += 1
+            elif place_id and place_id in ids_vistos:
+                evitados_duplicados += 1
+            else:
+                if place_id:
+                    ids_vistos.add(place_id)
+                candidatas_filtradas.append((linha, link))
+        candidatas = candidatas_filtradas
+
+    if limite_analises is not None:
+        adiados_limite = max(0, len(candidatas) - limite_analises)
+        candidatas = candidatas[:limite_analises]
     total_candidatas = len(candidatas)
     processadas = 0
 
@@ -1060,7 +1106,10 @@ def processar(caminho_csv_bruto, caminho_queries=CAMINHO_QUERIES_PADRAO, callbac
         "descartados_por_site_ok": descartados_por_site_ok,
         "descartados_nota_baixa": descartados_nota_baixa,
         "descartados_sem_telefone": descartados_sem_telefone,
+        "evitados_conhecidos": evitados_conhecidos,
+        "evitados_duplicados": evitados_duplicados,
         "erros_de_linha": erros_de_linha,
+        **({"adiados_limite": adiados_limite} if limite_analises is not None else {}),
     }
 
 

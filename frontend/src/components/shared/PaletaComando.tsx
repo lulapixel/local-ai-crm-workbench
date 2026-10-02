@@ -19,6 +19,10 @@ import { cn } from "@/lib/utils"
 import { FILTROS_VAZIOS } from "@/types/lead"
 
 const PAGINAS = [
+  { rotulo: "Visão geral", rota: "/", icone: <Building2 className="size-4" /> },
+  { rotulo: "Minha sessão e operação", rota: "/operacao", icone: <Zap className="size-4" /> },
+  { rotulo: "Mesa de pesquisa", rota: "/pesquisa", icone: <Search className="size-4" /> },
+  { rotulo: "Bot e automação", rota: "/bot", icone: <Zap className="size-4" /> },
   { rotulo: "Sessão de prospecção", rota: "/sessao", icone: <Zap className="size-4" /> },
   { rotulo: "Tarefas de hoje", rota: "/tarefas", icone: <ListTodo className="size-4" /> },
   { rotulo: "Leads do Maps", rota: "/leads", icone: <MapPin className="size-4" /> },
@@ -52,8 +56,10 @@ export function PaletaComando() {
         setIndice(0)
       }
     }
+    const abrir = () => { setAberta(true); setConsulta(""); setIndice(0) }
     window.addEventListener("keydown", aoTeclar)
-    return () => window.removeEventListener("keydown", aoTeclar)
+    window.addEventListener("prospectos:open-command", abrir)
+    return () => { window.removeEventListener("keydown", aoTeclar); window.removeEventListener("prospectos:open-command", abrir) }
   }, [])
 
   const { data: paginaLeads } = useQuery({
@@ -96,7 +102,7 @@ export function PaletaComando() {
         ),
         aoSelecionar: () => {
           fechar()
-          navigate(`/leads?busca=${encodeURIComponent(lead.nome)}`)
+          navigate(`/leads?lead=${encodeURIComponent(lead.place_id)}`)
         },
       }))
 

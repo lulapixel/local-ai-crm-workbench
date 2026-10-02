@@ -77,6 +77,13 @@ if _log_fallback:
     )
 
 import db
+import bot
+import bot_strategy
+import bot_delivery
+import bot_operations
+import local_workbench
+import management
+import research_desk
 import jobs
 import lp
 import outreach
@@ -130,6 +137,13 @@ app.register_blueprint(rotas_analytics.bp)
 app.register_blueprint(rotas_config.bp)
 app.register_blueprint(lp.bp)
 app.register_blueprint(outreach.bp)
+app.register_blueprint(bot.bp)
+app.register_blueprint(bot_strategy.bp)
+app.register_blueprint(bot_delivery.bp)
+app.register_blueprint(bot_operations.bp)
+app.register_blueprint(local_workbench.bp)
+app.register_blueprint(management.bp)
+app.register_blueprint(research_desk.bp)
 
 
 _METODOS_MUTAVEIS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
@@ -401,6 +415,11 @@ def preparar_banco_no_startup():
     conexao = sqlite3.connect(db.CAMINHO_BANCO, timeout=10)
     try:
         processar.preparar_banco(conexao)
+        bot.preparar_banco(conexao)
+        bot_strategy.preparar_banco(conexao)
+        bot_delivery.preparar_banco(conexao)
+        research_desk.preparar_banco(conexao)
+        management.preparar_banco(conexao)
     finally:
         conexao.close()
 
@@ -439,9 +458,14 @@ if __name__ == "__main__":
         raise SystemExit(2)
     if modo_dev:
         # dev com auto-reload do Flask, comportamento de sempre
+        if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+            bot.iniciar_scheduler()
         app.run(debug=True, port=5000)
     else:
-        porta = escolher_porta(5000)
+        porta_preferida = int(os.environ.get("PROSPECTOS_PORT", "5000"))
+        if not 1 <= porta_preferida <= 65535:
+            raise ValueError("PROSPECTOS_PORT deve estar entre 1 e 65535")
+        porta = escolher_porta(porta_preferida)
         # anuncia a porta pra quem iniciou o processo (shell do app de desktop lê
         # o stdout; o arquivo cobre quem preferir ler do disco). Empacotado sem
         # console, sys.stdout pode ser None - o arquivo vira a fonte da verdade.
@@ -463,4 +487,5 @@ if __name__ == "__main__":
         # waitress: servidor WSGI de produção (o dev server do Flask não é pra isso)
         from waitress import serve
 
+        bot.iniciar_scheduler()
         serve(app, host="127.0.0.1", port=porta, threads=8)

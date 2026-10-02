@@ -191,7 +191,13 @@ export function montarEstrategia(lead: Lead): EstrategiaLead {
   }
 
   const proximoPasso =
-    lead.status === "novo"
+    lead.status === "respondeu"
+      ? "O lead respondeu: confira o histórico, registre a necessidade e combine o próximo passo da negociação. Não use um lembrete de ausência de resposta."
+      : lead.status === "fechou"
+        ? "Negócio marcado como fechado: acompanhe a entrega e os combinados de pós-venda, sem reiniciar a prospecção."
+        : lead.status === "recusou" || lead.status === "ignorado"
+          ? "Não iniciar outra abordagem. Respeite a recusa ou o arquivamento e confira o registro antes de qualquer nova ação."
+          : lead.status === "novo"
       ? "Gere a copy de contato (ela já usa essa estratégia), revise com seu tom e mande pelo WhatsApp - e quando o lead responder, anexe o diagnóstico em PDF. Depois marque como contatado."
       : (lead.follow_ups_enviados ?? 0) > 0
         ? `Já foram ${lead.follow_ups_enviados} follow-up(s). Gere a copy de follow-up trazendo um elemento NOVO (prazo, exemplo pronto, diagnóstico) - repetir o mesmo argumento queima o lead.`

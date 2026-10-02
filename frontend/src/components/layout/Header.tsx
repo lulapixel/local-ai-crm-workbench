@@ -1,95 +1,24 @@
-import { Link, NavLink } from "react-router-dom"
-import { BookOpen, ListTodo, MapPin, Plus, Send, Settings, Trash2 } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { Link, NavLink, useLocation } from "react-router-dom"
+import { Activity, Bot, BookOpen, FileSearch, LayoutDashboard, ListTodo, MapPin, Menu, Plus, Search, Send, Settings, Trash2, BarChart3 } from "lucide-react"
 import { ThemeToggle } from "@/components/layout/ThemeToggle"
-import { InstagramIcon } from "@/components/icons/InstagramIcon"
-
-interface HeaderProps {
-  onNovaBusca?: () => void
-  onVerIgnorados?: () => void
-}
-
-function ItemNav({
-  to,
-  icone,
-  ariaLabel,
-  children,
-}: {
-  to: string
-  icone: React.ReactNode
-  ariaLabel?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <NavLink
-      to={to}
-      aria-label={ariaLabel}
-      className={({ isActive }) =>
-        cn(
-          "inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors",
-          isActive
-            ? "bg-accent text-foreground"
-            : "text-muted-foreground hover:bg-accent/60 hover:text-foreground"
-        )
-      }
-    >
-      {icone}
-      {children && <span className="hidden sm:inline">{children}</span>}
-    </NavLink>
-  )
-}
-
+import "@/pages/workspace.css"
+interface HeaderProps { onNovaBusca?: () => void; onVerIgnorados?: () => void }
+const principal = [
+  { to: "/", label: "Mesa do gestor", icon: LayoutDashboard }, { to: "/operacao", label: "Minha sessão", icon: Activity },
+  { to: "/pesquisa", label: "Mesa de pesquisa", icon: FileSearch }, { to: "/leads", label: "Leads do Maps", icon: MapPin },
+  { to: "/instagram", label: "Instagram", icon: Search }, { to: "/tarefas", label: "Oportunidades", icon: ListTodo },
+  { to: "/outreach/hoje", label: "Prospecção do dia", icon: Send }, { to: "/bot", label: "Bot e automação", icon: Bot },
+]
+const secondary = [
+  { to: "/abordagens", label: "Abordagens", icon: Send }, { to: "/analytics", label: "Resultados", icon: BarChart3 },
+  { to: "/documentacao", label: "Documentação", icon: BookOpen }, { to: "/configuracoes", label: "Configurações", icon: Settings },
+]
 export function Header({ onNovaBusca, onVerIgnorados }: HeaderProps) {
-  return (
-    <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <Link to="/" className="flex items-center gap-2">
-          <img src="/logo-icon.svg" alt="ProspectOS" className="size-9" />
-          <h1 className="text-lg font-semibold tracking-tight sm:text-xl">
-            ProspectOS
-          </h1>
-        </Link>
-
-        <nav className="flex items-center gap-1">
-          <ItemNav to="/outreach/hoje" icone={<Send className="size-4" />}>
-            Prospecção do dia
-          </ItemNav>
-          <ItemNav to="/abordagens" icone={<Send className="size-4" />}>
-            Central de Abordagens
-          </ItemNav>
-          <ItemNav to="/tarefas" icone={<ListTodo className="size-4" />}>
-            Tarefas
-          </ItemNav>
-          <ItemNav to="/leads" icone={<MapPin className="size-4" />}>
-            Google Maps
-          </ItemNav>
-          <ItemNav to="/instagram" icone={<InstagramIcon className="size-4" />}>
-            Instagram
-          </ItemNav>
-          <ItemNav to="/documentacao" icone={<BookOpen className="size-4" />}>
-            Documentação
-          </ItemNav>
-          {onVerIgnorados && (
-            <Button variant="ghost" size="sm" onClick={onVerIgnorados}>
-              <Trash2 className="size-4" />
-              <span className="hidden sm:inline">Ignorados</span>
-            </Button>
-          )}
-          {onNovaBusca && (
-            <Button size="sm" onClick={onNovaBusca}>
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">Nova busca</span>
-            </Button>
-          )}
-          <ItemNav
-            to="/configuracoes"
-            icone={<Settings className="size-4" />}
-            ariaLabel="Configurações"
-          />
-          <ThemeToggle />
-        </nav>
-      </div>
-    </header>
-  )
+  const location = useLocation()
+  const title = [...principal, ...secondary].find(item => item.to === location.pathname)?.label ?? "ProspectOS"
+  const links = (items: typeof principal) => items.map(({ to, label, icon: Icon }) => <NavLink end={to === "/"} to={to} key={to} className={({ isActive }) => isActive ? "workspace-nav-link active" : "workspace-nav-link"} onClick={e => e.currentTarget.closest("details")?.removeAttribute("open")}><Icon size={17} /><span>{label}</span></NavLink>)
+  return <header className="workspace-header">
+    <aside className="workspace-sidebar" aria-label="Navegação do workspace"><Link className="workspace-brand" to="/"><img src="/logo-icon.svg" alt="" /><span><strong>ProspectOS</strong><small>LOCAL WORKBENCH</small></span></Link><p className="workspace-nav-label">SEU TRABALHO</p><nav>{links(principal)}</nav><p className="workspace-nav-label">ACOMPANHAMENTO</p><nav>{links(secondary)}</nav><div className="workspace-sidebar-foot"><span className="workspace-local-dot" /> Base local · revisão humana<small>Contexto antes de volume.</small></div></aside>
+    <div className="workspace-topbar"><div className="workspace-breadcrumb"><details className="workspace-mobile-menu"><summary aria-label="Abrir navegação"><Menu size={20} /></summary><nav aria-label="Navegação móvel">{links([...principal, ...secondary])}</nav></details><Link className="workspace-mobile-brand" to="/"><img src="/logo-icon.svg" alt="ProspectOS" /></Link><span>Workspace <b>/</b> <strong>{title}</strong></span></div><div className="workspace-top-actions"><button className="workspace-search-button" onClick={() => window.dispatchEvent(new Event("prospectos:open-command"))}><Search size={16} /><span>Buscar</span><kbd>Ctrl K</kbd></button>{onVerIgnorados && <button className="workspace-icon-button" title="Ver ignorados" aria-label="Ver ignorados" onClick={onVerIgnorados}><Trash2 size={16} /></button>}{onNovaBusca && <button className="desk-primary" onClick={onNovaBusca}><Plus size={16} /><span>Nova busca</span></button>}<ThemeToggle /></div></div>
+  </header>
 }

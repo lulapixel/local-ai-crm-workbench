@@ -462,6 +462,22 @@ class TestDispararBusca:
         finally:
             jobs.estado_busca["rodando"] = False
 
+    def test_queries_iguais_sao_consolidadas_antes_da_captura(self, cliente, tmp_path, monkeypatch):
+        disparos = []
+        monkeypatch.setattr(paths, "DIR_DADOS", tmp_path)
+        monkeypatch.setattr(jobs, "iniciar_thread_busca", lambda areas=None, apenas_novos=False: disparos.append((areas, apenas_novos)))
+        try:
+            resposta = cliente.post("/api/buscar", json={
+                "queries": "Clínica em Recife\n clínica em recife \nBarbearia em Recife"
+            })
+            assert resposta.status_code == 200
+            assert (tmp_path / "queries.txt").read_text(encoding="utf-8") == (
+                "Clínica em Recife\nBarbearia em Recife\n"
+            )
+            assert disparos == [(None, False)]
+        finally:
+            jobs.liberar_busca()
+
 
 AREA_VALIDA = {"lat": -23.31, "lng": -51.16, "raio_m": 5000, "rotulo": "Londrina - Paraná"}
 
@@ -474,7 +490,7 @@ class TestBuscaPorMapa:
         disparos = []
         # o queries.txt é escrito na área de dados (paths.DIR_DADOS)
         monkeypatch.setattr(paths, "DIR_DADOS", tmp_path)
-        monkeypatch.setattr(jobs, "iniciar_thread_busca", lambda areas=None: disparos.append(areas))
+        monkeypatch.setattr(jobs, "iniciar_thread_busca", lambda areas=None, apenas_novos=False: disparos.append((areas, apenas_novos)))
         return cliente, tmp_path, disparos
 
     def test_dispara_busca_por_mapa(self, ambiente_busca):
@@ -488,9 +504,9 @@ class TestBuscaPorMapa:
 
             assert (tmp_path / "queries.txt").read_text(encoding="utf-8") == "clínica de estética\nbarbearia\n"
             assert len(disparos) == 1
-            assert disparos[0] == [
+            assert disparos[0] == ([
                 {"lat": -23.31, "lng": -51.16, "raio_m": 5000, "rotulo": "Londrina - Paraná"}
-            ]
+            ], False)
         finally:
             jobs.liberar_busca()
 
@@ -502,7 +518,7 @@ class TestBuscaPorMapa:
                 "areas": [{"lat": -23.31, "lng": -51.16, "raio_m": 2000}],
             })
             assert resposta.status_code == 200
-            assert disparos[0][0]["rotulo"] == "-23.3100, -51.1600"
+            assert disparos[0][0][0]["rotulo"] == "-23.3100, -51.1600"
         finally:
             jobs.liberar_busca()
 
@@ -557,6 +573,21 @@ class TestBuscaPorMapa:
             assert resposta.status_code == 409
         finally:
             jobs.estado_busca["rodando"] = False
+
+    def test_modo_economico_e_validado_e_propagado(self, ambiente_busca):
+        cliente, _, disparos = ambiente_busca
+        invalido = cliente.post("/api/buscar", json={
+            "queries": "clínica em Recife", "apenas_novos": "sim"
+        })
+        assert invalido.status_code == 400
+        try:
+            resposta = cliente.post("/api/buscar", json={
+                "queries": "clínica em Recife", "apenas_novos": True
+            })
+            assert resposta.status_code == 200
+            assert disparos == [(None, True)]
+        finally:
+            jobs.liberar_busca()
 
 
 class TestZoomParaRaio:

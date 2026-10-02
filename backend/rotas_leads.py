@@ -840,7 +840,16 @@ def _validar_busca_por_texto(corpo):
                     f"\"{linha_longa_demais[:60]}...\""
         }), 400)
 
-    return queries_texto, None
+    # Linhas repetidas gastam uma captura sem acrescentar cobertura.
+    vistas = set()
+    unicas = []
+    for linha in linhas_queries:
+        limpa = linha.strip()
+        chave = limpa.casefold()
+        if chave not in vistas:
+            vistas.add(chave)
+            unicas.append(limpa)
+    return "\n".join(unicas), None
 
 
 def _validar_busca_por_mapa(corpo):
@@ -855,13 +864,16 @@ def _validar_busca_por_mapa(corpo):
         return None, (jsonify({"erro": f"no máximo {MAX_NICHOS_BUSCA_MAPA} nichos por busca"}), 400)
 
     nichos = []
+    nichos_vistos = set()
     for nicho in nichos_brutos:
         texto = str(nicho or "").strip()
         if not texto:
             continue
         if len(texto) > MAX_CARACTERES_NICHO_BUSCA:
             return None, (jsonify({"erro": f"nicho muito longo (máximo {MAX_CARACTERES_NICHO_BUSCA} caracteres): \"{texto[:40]}...\""}), 400)
-        nichos.append(texto)
+        if texto.casefold() not in nichos_vistos:
+            nichos.append(texto)
+            nichos_vistos.add(texto.casefold())
     if not nichos:
         return None, (jsonify({"erro": "informe ao menos um nicho (ex: clínica de estética)"}), 400)
 
@@ -871,6 +883,7 @@ def _validar_busca_por_mapa(corpo):
         return None, (jsonify({"erro": f"no máximo {MAX_AREAS_BUSCA_MAPA} áreas (pinos) por busca"}), 400)
 
     areas = []
+    areas_vistas = set()
     for indice, area in enumerate(areas_brutas, start=1):
         if not isinstance(area, dict):
             return None, (jsonify({"erro": f"área {indice} inválida"}), 400)
@@ -892,7 +905,10 @@ def _validar_busca_por_mapa(corpo):
         if not rotulo:
             rotulo = f"{lat:.4f}, {lng:.4f}"
 
-        areas.append({"lat": lat, "lng": lng, "raio_m": raio_m, "rotulo": rotulo})
+        chave_area = (lat, lng, raio_m)
+        if chave_area not in areas_vistas:
+            areas.append({"lat": lat, "lng": lng, "raio_m": raio_m, "rotulo": rotulo})
+            areas_vistas.add(chave_area)
 
     return ("\n".join(nichos), areas), None
 
@@ -904,6 +920,9 @@ def disparar_busca():
     - mapa: {"nichos": [...], "areas": [{lat, lng, raio_m, rotulo}, ...]} -
       o scraper roda uma vez por área, geolocalizado no pino com o raio escolhido."""
     corpo = request.json or {}
+    apenas_novos = corpo.get("apenas_novos", False)
+    if not isinstance(apenas_novos, bool):
+        return jsonify({"erro": "apenas_novos deve ser verdadeiro ou falso"}), 400
     modo_mapa = "areas" in corpo or "nichos" in corpo
 
     if modo_mapa:
@@ -924,7 +943,7 @@ def disparar_busca():
         # queries.txt é escrito a cada busca - vai pra área de dados (gravável)
         caminho_queries = paths.caminho_dados("queries.txt", criar_pai=True)
         paths.escrever_texto_atomico(caminho_queries, queries_texto + "\n")
-        jobs.iniciar_thread_busca(areas)
+        jobs.iniciar_thread_busca(areas, apenas_novos=apenas_novos)
     except Exception:
         jobs.liberar_busca()  # senão a flag ficaria presa em True pra sempre
         raise
