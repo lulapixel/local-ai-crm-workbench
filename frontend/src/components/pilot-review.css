@@ -1,0 +1,11 @@
+.pilot-review{scroll-margin-top:86px;margin-top:28px;padding:28px;background:#fff;border:1px solid #d8e2e6;border-radius:18px;color:#233643}
+.pilot-review h2{font-size:24px;letter-spacing:-.6px;font-weight:700}.pilot-review>p{max-width:850px;color:#536572;margin-top:12px;line-height:1.6}
+.pilot-status{background:#e9f2f5;color:#24596d;font-size:12px;font-weight:600;padding:8px 12px;border-radius:8px}
+.pilot-caption{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:24px 0 14px}.pilot-caption h3{font-size:18px;font-weight:600}.pilot-caption span{font-size:12px;color:#536572}
+.pilot-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border:1px solid #d8e2e6;border-radius:12px;overflow:hidden}
+.pilot-prospect{padding:22px;min-width:0;border-right:1px solid #d8e2e6}.pilot-prospect:last-child{border-right:0}.pilot-prospect h3{font-size:20px;font-weight:650;letter-spacing:-.3px;margin:10px 0 6px}.pilot-phone{font-variant-numeric:tabular-nums;font-size:14px}
+.pilot-prospect dl{margin:22px 0 16px}.pilot-prospect dl>div{margin-bottom:14px}.pilot-prospect dt{font-size:12px;font-weight:700;color:#24596d;margin-bottom:4px}.pilot-prospect dd{font-size:13px;line-height:1.6;color:#425765}.pilot-prospect a{display:inline-flex;align-items:center;gap:6px;color:#176487;font-weight:600;font-size:13px}
+.pilot-prospect details{margin-top:20px;border-top:1px solid #d8e2e6;padding-top:16px}.pilot-prospect summary{cursor:pointer;font-size:13px;font-weight:650}.pilot-prospect details p{font-size:13px;line-height:1.7;margin-top:14px;overflow-wrap:anywhere}.pilot-prospect .pilot-draft{border-left:3px solid #24596d;padding:10px 0 10px 14px}.pilot-prospect button{margin-top:14px;display:inline-flex;align-items:center;gap:8px}.pilot-feedback{min-height:24px}
+.pilot-review :is(a,button,summary):focus-visible{outline:3px solid #176487;outline-offset:4px}
+@media(max-width:1100px){.pilot-grid{grid-template-columns:1fr}.pilot-prospect{border-right:0;border-bottom:1px solid #d8e2e6}.pilot-prospect:last-child{border-bottom:0}}
+@media(max-width:640px){.pilot-review{padding:18px}.pilot-caption{align-items:flex-start;flex-direction:column}.pilot-review .operation-section-title{align-items:flex-start;flex-direction:column}.pilot-prospect{padding:18px}}

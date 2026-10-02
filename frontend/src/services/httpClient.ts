@@ -76,7 +76,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     response = await fetchWithCsrf(url, options)
   } catch {
     throw new ApiError(
-      "Não foi possível falar com o servidor. Confira se o `py app.py` ainda está rodando.",
+      "Não foi possível conectar ao sistema local. Abra novamente o ProspectOS e tente atualizar a página.",
       0
     )
   }

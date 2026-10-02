@@ -1,112 +1,47 @@
-import { useQuery } from "@tanstack/react-query"
-import { ArrowRight, ArrowUpRight, Bot, Compass, ListTodo, MapPin, Radar, Send, Sparkles } from "lucide-react"
+import { useState } from "react"
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query"
+import { ArrowRight, ArrowUpRight, Bot, CircleCheck, Compass, FileSearch, ShieldCheck } from "lucide-react"
 import { Link } from "react-router-dom"
 import { Header } from "@/components/layout/Header"
-import { DailyOutreachWidget } from "@/components/dashboard/DailyOutreachWidget"
-import { VisaoGeralCombinada } from "@/components/dashboard/VisaoGeralCombinada"
-import { FunilConversaoCombinado } from "@/components/dashboard/FunilConversaoCombinado"
-import { BreakdownNichoCombinado } from "@/components/dashboard/BreakdownNichoCombinado"
-import { useMetricasCombinadas } from "@/hooks/useCombinado"
-import { tarefasService } from "@/services/tarefasService"
-import "./dashboard.css"
-
-const atalhos = [
-  { to: "/tarefas", icon: ListTodo, title: "Fila de oportunidades", detail: "Comece pelos contatos com mais potencial", number: "01" },
-  { to: "/leads", icon: MapPin, title: "Captar no Maps", detail: "Planeje consultas e evite reanálises", number: "02" },
-  { to: "/outreach/hoje", icon: Send, title: "Prospecção do dia", detail: "Avance conversas e retornos pendentes", number: "03" },
-  { to: "/bot", icon: Bot, title: "Bot de prospecção", detail: "Prepare o fluxo e aprove cada contato", number: "04" },
-]
+import { ManagementEditor } from "@/components/ManagementEditor"
+import { ManagementReceipts } from "@/components/ManagementReceipts"
+import { getManagement } from "@/services/managementService"
+import { brl } from "@/lib/management"
+import "./workspace.css"
+import "./management.css"
 
 export function DashboardPage() {
-  const { data: metricas } = useMetricasCombinadas()
-  const { data: tarefas, isError } = useQuery({
-    queryKey: ["tarefas-hoje", "dashboard"],
-    queryFn: tarefasService.tarefasHoje,
-  })
-  const sinais = tarefas?.novos_quentes ?? []
-
-  return (
-    <div className="workbench min-h-screen bg-background text-foreground">
-      <Header />
-      <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-7 sm:px-6 lg:px-8">
-        <div className="wb-heading-row">
-          <div>
-            <p className="wb-eyebrow"><span className="wb-live-dot" /> Central de trabalho</p>
-            <h1>Encontre o próximo <em>bom contato.</em></h1>
-            <p className="wb-intro">Um lugar para decidir onde buscar, quem abordar e o que merece seu tempo.</p>
-          </div>
-          <Link className="wb-heading-link" to="/leads">Abrir captação <ArrowUpRight size={17} /></Link>
-        </div>
-
-        <section className="wb-hero" aria-label="Prioridades de prospecção">
-          <div className="wb-hero-main">
-            <div className="wb-grid-pattern" aria-hidden="true" />
-            <div className="wb-hero-top"><Radar size={20} /><span>Seu radar de oportunidades</span></div>
-            <div className="wb-hero-content">
-              <p className="wb-hero-kicker">PRIORIZE ANTES DE CAPTAR MAIS</p>
-              <h2>{sinais.length > 0 ? "Há oportunidades esperando por você." : "Comece com uma busca mais inteligente."}</h2>
-              <p>{sinais.length > 0
-                ? "A fila destaca leads novos com melhor pontuação. Trabalhe os contatos existentes antes de ampliar a captura."
-                : "Defina nichos e regiões com intenção. O modo econômico evita repetir análises de leads que já estão no CRM."}</p>
-              <div className="wb-hero-actions">
-                <Link to={sinais.length > 0 ? "/tarefas" : "/leads"} className="wb-primary-action">
-                  {sinais.length > 0 ? "Abrir fila prioritária" : "Explorar leads"} <ArrowRight size={17} />
-                </Link>
-                <Link to="/leads" className="wb-secondary-action">Ver minha base <ArrowUpRight size={15} /></Link>
-              </div>
-            </div>
-            <div className="wb-hero-foot"><span>MAPS + INSTAGRAM</span><span>BASE LOCAL</span><span>VOCÊ NO CONTROLE</span></div>
-          </div>
-          <div className="wb-signal-panel">
-            <div className="wb-panel-header">
-              <div><span className="wb-panel-overline">SINAIS ATIVOS</span><h3>Na sua mira</h3></div>
-              <Compass size={24} aria-hidden="true" />
-            </div>
-            {sinais.length > 0 ? (
-              <div className="wb-signal-list">
-                {sinais.slice(0, 3).map((lead, index) => (
-                  <Link to="/tarefas" key={lead.id} className="wb-signal-item">
-                    <span className="wb-signal-index">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="wb-signal-copy"><strong>{lead.titulo}</strong><small>{lead.site_status === "sem_site" ? "Sem site" : lead.site_status === "site_ruim" ? "Site com melhorias" : "Lead novo"} · {lead.categoria || "Google Maps"}</small></span>
-                    <span className="wb-score">{lead.score}</span>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="wb-signal-empty">
-                <Sparkles size={22} aria-hidden="true" />
-                <p>{isError ? "Não foi possível carregar a fila agora." : "Nenhum lead novo priorizado ainda."}</p>
-                <span>{isError ? "Verifique se o servidor local está ativo." : "Os melhores contatos aparecem aqui após a primeira captura."}</span>
-              </div>
-            )}
-            <Link to="/tarefas" className="wb-panel-footer">Ver todas as prioridades <ArrowRight size={16} /></Link>
-          </div>
+  const [month, setMonth] = useState("")
+  const client = useQueryClient()
+  const query = useQuery({ queryKey: ["management", month], queryFn: () => getManagement(month), staleTime: 30_000, refetchOnWindowFocus: false, placeholderData: keepPreviousData })
+  const data = query.data
+  const saved = () => {
+    void client.invalidateQueries({ queryKey: ["management"] })
+    void client.invalidateQueries({ queryKey: ["operation-plan"] })
+  }
+  return <><Header /><main className="desk-page manager-page">
+    <div className="desk-page-heading"><div><p className="desk-eyebrow">PROSPECTOS / MESA DO GESTOR</p><h1>Direcione o trabalho.<br /><em>Acompanhe o que avança.</em></h1><p>Seu ponto de decisão entre pesquisa, proposta e resultado.</p></div><Link className="desk-secondary" to="/operacao">Abrir fila de trabalho <ArrowUpRight size={15} /></Link></div>
+    {query.isPending && <div className="manager-loading" role="status">Conferindo suas prioridades e registros locais…</div>}
+    {query.isPlaceholderData && <p role="status" className="desk-caption">Carregando o mês selecionado; os valores anteriores continuam visíveis até a atualização.</p>}
+    {query.isError && <div className="desk-notice" role="alert">{query.error.message} <button className="desk-secondary" onClick={() => void query.refetch()}>Tentar novamente</button></div>}
+    {data && <>
+      {data.operation.demo && <p className="desk-notice" role="status">Demonstração isolada com dados fictícios. Automação e envios desativados.</p>}
+      <div className="manager-briefing">
+        <section className="manager-recommendation" aria-labelledby="recommendation-title"><p className="desk-eyebrow"><Compass size={14} /> RECOMENDAÇÃO PRINCIPAL</p><h2 id="recommendation-title">{data.recommendation.title}</h2><p>{data.recommendation.reason}</p>
+          {data.profile.explanation === "reasoned" && <div className="manager-reasoning"><strong>Por que esta direção</strong><p>{data.recommendation.alternative}</p><small>Base: {data.recommendation.evidence.toLowerCase()}.</small></div>}
+          {data.recommendation.href.startsWith("#") ? <a href={data.recommendation.href} className="desk-primary">{data.recommendation.label}<ArrowRight size={15} /></a> : <Link to={data.recommendation.href} className="desk-primary">{data.recommendation.label}<ArrowRight size={15} /></Link>}
         </section>
-
-        <section className="wb-overview" aria-label="Resumo do CRM">
-          <div><span>Leads na base</span><strong>{metricas?.total ?? "—"}</strong><small>Maps e Instagram</small></div>
-          <div><span>Para retomar hoje</span><strong>{metricas?.lembretes_hoje ?? "—"}</strong><small>Follow-ups pendentes</small></div>
-          <div><span>Conversão</span><strong>{metricas ? `${metricas.taxa_conversao}%` : "—"}</strong><small>De contatos a clientes</small></div>
-          <div><span>Novos em destaque</span><strong>{tarefas ? sinais.length : "—"}</strong><small>Até cinco na fila</small></div>
-        </section>
-
-        <section className="wb-section" aria-labelledby="wb-workflow-title">
-          <div className="wb-section-heading"><div><p className="wb-section-kicker">SEU FLUXO</p><h2 id="wb-workflow-title">Do sinal à conversa</h2></div><p>Escolha o próximo passo sem perder o contexto.</p></div>
-          <div className="wb-shortcuts">{atalhos.map(({ to, icon: Icon, title, detail, number }) => (
-            <Link className="wb-shortcut" to={to} key={to}>
-              <div className="wb-shortcut-top"><Icon size={21} /><span>{number}</span></div>
-              <strong>{title}</strong><p>{detail}</p><ArrowUpRight className="wb-shortcut-arrow" size={19} />
-            </Link>
-          ))}</div>
-        </section>
-
-        <section className="wb-section wb-existing" aria-labelledby="wb-performance-title">
-          <div className="wb-section-heading"><div><p className="wb-section-kicker">ACOMPANHAMENTO</p><h2 id="wb-performance-title">Ritmo e resultados</h2></div><p>Dados da sua operação, atualizados pelo CRM local.</p></div>
-          <DailyOutreachWidget />
-          <VisaoGeralCombinada />
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2"><FunilConversaoCombinado /><BreakdownNichoCombinado /></div>
-        </section>
-      </main>
-    </div>
-  )
+        <aside className="manager-mandate"><p className="desk-eyebrow">SEU MODO DE OPERAÇÃO</p><h2>Gestão com contexto.</h2><dl><div><dt>Frentes de trabalho</dt><dd>{data.profile.focus === "parallel" ? "Serviços + contratos remotos" : data.profile.focus === "websites" ? "Serviços de websites" : "Contratos remotos"}</dd></div><div><dt>Território preferido</dt><dd>{data.profile.city || "Ainda não definido"}</dd></div><div><dt>Novos gastos nesta preparação</dt><dd>Sem autorização de gasto novo</dd></div><div><dt>Referência mensal recebida</dt><dd>{data.profile.monthly_received_target_cents === null ? "Ainda não definida" : brl(data.profile.monthly_received_target_cents)}</dd></div></dl><a href="#oferta">Ajustar perfil e oferta <ArrowUpRight size={13} /></a><p>Preferências orientam decisões. Os limites e aprovações do bot continuam valendo.</p></aside>
+      </div>
+      <section className="manager-evidence-path" aria-label="Etapas observadas da operação"><div><span>PREPARAÇÃO</span><strong>{data.readiness.completed}/{data.readiness.total}</strong><p>itens da oferta revisados</p></div><ArrowRight aria-hidden="true" size={16} /><div><span>EXECUÇÃO</span><strong>{data.operation.available_actions}</strong><p>ações elegíveis no recorte</p></div><ArrowRight aria-hidden="true" size={16} /><div><span>RECEBIMENTOS</span><strong>{brl(data.finance.received_cents)}</strong><p>registrados em {data.finance.month.split("-").reverse().join("/")}</p></div><p className="manager-path-note">Cada etapa tem sua evidência.<br />Preparação não é venda.</p></section>
+      <div className="desk-section-heading"><h2>Decisões com trabalho preparado</h2><Link to="/operacao">Ver fila completa <ArrowUpRight size={14} /></Link></div>
+      {data.operation.actions.length ? <div className="manager-decisions">{data.operation.actions.slice(0, 3).map(action => <article key={action.id}><span className="manager-tag">{action.department}</span><h3>{action.name}</h3><p>{action.reason}</p><strong className="manager-decision-label">Sua decisão: {action.human_decision.toLowerCase()}.</strong>{data.profile.explanation === "reasoned" && <details><summary>Entender o critério</summary><p>{action.learning}</p></details>}<Link className="desk-secondary" to={action.href}>Conferir contexto <ArrowUpRight size={13} /></Link></article>)}</div> : <div className="manager-empty">Nenhuma ação elegível no recorte da sessão. Prepare a oferta ou <Link to="/pesquisa">abra a mesa de pesquisa</Link> para investigar oportunidades.</div>}
+      {data.operation.limited && <p className="desk-caption">A fila considera até {data.operation.scan_limit} registros Maps. Use filtros na sessão para trabalhar outro recorte.</p>}
+      <div className="manager-lanes"><div><FileSearch size={19} /><div><h3>Serviços locais</h3><p>Use uma oferta específica para investigar necessidades, qualificar contatos e revisar abordagens.</p></div><Link to="/pesquisa" aria-label="Abrir pesquisa de serviços locais"><ArrowUpRight size={17} /></Link></div><div><CircleCheck size={19} /><div><h3>Contratos remotos</h3><p>Reaproveite a demonstração como amostra de trabalho e explique sua contribuição e o apoio da IA.</p></div><a href="#oferta" aria-label="Preparar material para contratos remotos"><ArrowUpRight size={17} /></a></div></div>
+      <ManagementEditor data={data} onSaved={saved} />
+      <ManagementReceipts data={data} month={month} onMonth={setMonth} onSaved={saved} />
+      <section className="manager-control"><Bot size={20} /><div><h2>O que a automação pode fazer agora</h2><p>Agenda estratégica {data.operation.strategy.enabled ? `às ${data.operation.strategy.hour} (Brasília)` : "desativada"} · {data.operation.strategy.used_today}/{data.operation.strategy.daily_limit} chamadas hoje. Transmissão automática {data.operation.channels.live_enabled ? "sujeita às regras e aprovações dos canais" : "desativada"}.</p><p>Esta mesa usa regras locais. O contexto de frente e prontidão estará disponível nas chamadas estratégicas já autorizadas; nenhuma chamada é feita ao abrir a página.</p></div><Link to="/bot" className="desk-secondary"><ShieldCheck size={14} />Conferir controles</Link></section>
+      <p className="desk-caption">Perfil aplicado ao planejamento local. Utilidade comercial e satisfação ainda precisam ser observadas no uso; não há promessa de renda ou de prazo para venda.</p>
+    </>}
+  </main></>
 }

@@ -71,6 +71,7 @@ def registrar(place_id, body):
 def painel():
     import bot_strategy
     import bot_delivery
+    import research_desk
     stamp = bot._scheduler_last_tick
     alive = bool(bot._scheduler_thread and bot._scheduler_thread.is_alive())
     age = (datetime.now(timezone.utc) - datetime.fromisoformat(stamp)).total_seconds() if stamp else None
@@ -89,7 +90,10 @@ def painel():
                    "replied": outcomes.get("respondeu",0), "won": outcomes.get("fechou",0), "suppressed": suppressed,
                    "useful_campaigns": useful, "uncertain": uncertain, "monetary_cost": None}
         config = bot_strategy.settings(c)
+        research = research_desk.summary(c)
     actions = []
+    if research["total"]:
+        actions.append({"title": "Trabalhar a pesquisa local", "detail": f"{research['total']} candidato(s) em acompanhamento; {research['due']} retorno(s) vencidos. Qualificação e aprovação continuam individuais.", "href": "/pesquisa", "level": "normal"})
     if uncertain:
         actions.append({"title":"Conferir envios incertos", "detail":f"{uncertain} tentativa(s) precisam de consulta ao provedor antes de repetir.", "href":"#bot-channels", "level":"attention"})
     if metrics["prepared"]:
@@ -100,7 +104,7 @@ def painel():
         actions.append({"title":"Preparar campanhas com trabalho disponível", "detail":f"{useful} campanha(s) com saldo e oportunidades, retornos ou captura autorizada.", "href":"#bot-config", "level":"normal"})
     if not actions:
         actions.append({"title":"Ensaiar uma campanha", "detail":"Defina sua oferta e confira a base antes de executar.", "href":"#bot-config", "level":"normal"})
-    return {"scheduler":scheduler, "metrics":metrics, "actions":actions, "contacts":contacts,
+    return {"scheduler":scheduler, "metrics":metrics, "research":research, "actions":actions, "contacts":contacts,
             "demo":os.environ.get("PROSPECTOS_TEST_MODE","").lower() in ('1','true','yes'),
             "channels":bot_delivery.readiness(), "measurement_note":"Contagens do CRM; não demonstram entrega, receita ou causalidade."}
 

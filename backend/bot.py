@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
@@ -487,6 +488,8 @@ def tick():
 
 def iniciar_scheduler():
     global _scheduler_started, _scheduler_thread
+    if os.environ.get("PROSPECTOS_AUTOMATION_DISABLED") == "1":
+        return
     with _scheduler_lock:
         if _scheduler_started:
             return

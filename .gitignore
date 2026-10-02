@@ -30,6 +30,7 @@ leads.db-*
 .codex/
 .pytest_cache/
 .pytest-tmp/
+backend/.pytest-*/
 .playwright-mcp/
 
 # Graphify é uma projeção derivada; o código e a documentação são a fonte de verdade.
@@ -51,6 +52,9 @@ desktop/.npm-cache/
 desktop/.electron-cache/
 desktop/.electron-builder-cache/
 desktop/saida/
+desktop/local-runtime/
+desktop/local-data/
+desktop/local-validation/
 
 # Executables & large installer outputs
 *.exe

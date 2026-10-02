@@ -1,11 +1,14 @@
 """Caminhos centrais do app: onde ficam os recursos (read-only) e os dados (graváveis).
 
-Dois modos de execução:
+Modos de execução:
 
 - **Fonte** (clone do repo, `py app.py`): tudo fica na pasta do projeto, como sempre
   foi — nada muda para quem desenvolve ou roda o app. O executor oficial de testes
   pode ativar explicitamente um diretório de dados temporário, sem alterar este
   padrão.
+- **Desktop local fonte**: exige a marca `PROSPECTOS_LOCAL_DESKTOP=1` e uma
+  raiz absoluta explícita. Mantém dados fora do código e respeita o isolamento
+  de testes quando ambas as marcas de teste estão presentes.
 - **Empacotado** (PyInstaller, `sys.frozen`): o código e os recursos viram um bundle
   read-only (possivelmente em Program Files), então os dados do usuário (banco,
   backups, saídas, sessão do Instagram) PRECISAM ir para uma pasta gravável —
@@ -47,6 +50,11 @@ else:
     # dados reais de uma execução normal do aplicativo.
     if _modo_teste and _dados_teste_path and _dados_teste_path.is_absolute():
         DIR_DADOS = _dados_teste_path
+    elif os.environ.get("PROSPECTOS_LOCAL_DESKTOP") == "1":
+        _dados_locais = Path(os.environ.get("PROSPECTOS_LOCAL_DATA_DIR", "")).expanduser()
+        if not _dados_locais.is_absolute():
+            raise ValueError("O desktop local exige PROSPECTOS_LOCAL_DATA_DIR absoluto")
+        DIR_DADOS = _dados_locais
     else:
         DIR_DADOS = _DIR_FONTE
 

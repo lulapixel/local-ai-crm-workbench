@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { ArrowLeft, Download } from "lucide-react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
+import { httpClient } from "@/services/httpClient"
 import { Header } from "@/components/layout/Header"
 import { Button } from "@/components/ui/button"
 import { GoogleMapsBanner } from "@/components/leads/GoogleMapsBanner"
@@ -20,6 +22,14 @@ import type { Lead } from "@/types/lead"
 
 export function LeadsMapsPage() {
   const { filtros, setFiltros, limpar, filtrosEmUso } = useFiltrosLeads()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedLead = searchParams.get("lead")
+  const detail = useQuery({
+    queryKey: ["operation-lead", requestedLead],
+    queryFn: () => httpClient.get<Lead>(`/api/leads/${encodeURIComponent(requestedLead!)}`),
+    enabled: Boolean(requestedLead),
+    retry: false,
+  })
   const buscaInputRef = useRef<HTMLInputElement>(null)
   const [placeIdSelecionado, setPlaceIdSelecionado] = useState<string | null>(
     null
@@ -29,6 +39,12 @@ export function LeadsMapsPage() {
   // status pra um que não passa no filtro atual), o modal continua aberto com o
   // último dado conhecido em vez de fechar sozinho no meio da interação.
   const [leadSelecionado, setLeadSelecionado] = useState<Lead | null>(null)
+  useEffect(() => {
+    if (requestedLead && detail.data) {
+      setPlaceIdSelecionado(requestedLead)
+      setLeadSelecionado(detail.data)
+    }
+  }, [requestedLead, detail.data])
   useEffect(() => {
     if (placeIdSelecionado === null) {
       setLeadSelecionado(null)
@@ -72,6 +88,8 @@ export function LeadsMapsPage() {
         </Link>
 
         <GoogleMapsBanner />
+        {requestedLead && detail.isPending && <p role="status">Abrindo o contato selecionado…</p>}
+        {requestedLead && detail.isError && <p role="alert">Não foi possível abrir este contato. <button onClick={() => void detail.refetch()} className="underline">Tentar novamente</button></p>}
 
         <MetricsDashboard />
 
@@ -104,7 +122,14 @@ export function LeadsMapsPage() {
 
       <LeadDetailModal
         lead={leadSelecionado}
-        onClose={() => setPlaceIdSelecionado(null)}
+        onClose={() => {
+          setPlaceIdSelecionado(null)
+          if (requestedLead) {
+            const next = new URLSearchParams(searchParams)
+            next.delete("lead")
+            setSearchParams(next, { replace: true })
+          }
+        }}
       />
 
       <NovaBuscaModal
